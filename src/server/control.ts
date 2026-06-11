@@ -21,7 +21,10 @@ import { testPattern } from "../core/matcher.js";
 import {
   resolveConfigWithProvenance,
   writeConfigFile,
+  loadConfig,
 } from "../core/config.js";
+import { GitBatcher } from "../core/git-batcher.js";
+import { buildStoreCommitOptions } from "../core/store-git-options.js";
 import { homedir } from "node:os";
 
 export interface ControlServerOptions {
@@ -34,6 +37,8 @@ export interface ControlServerOptions {
 export interface ControlServerHandle {
   url: string;
   close: () => Promise<void>;
+  /** Flush any pending batch git commits immediately. No-op if not in batch mode. */
+  flushGit: () => Promise<void>;
 }
 
 const DEFAULT_PORT = 7337;
@@ -125,6 +130,23 @@ export function createControlApp(opts: ControlServerOptions = {}): Hono {
   const cwd = opts.cwd ?? process.cwd();
   const app = new Hono();
 
+  // --- Git batcher (batch mode only) ---
+  const config = loadConfig(cwd);
+  let batcher: GitBatcher | undefined;
+  if (config.git.autoCommit === "batch") {
+    batcher = new GitBatcher({
+      cwd,
+      idleSeconds: config.git.batchIdleSeconds ?? 300,
+      batchCommitMessage: config.git.batchCommitMessage ?? "chore(glossary): update {count} glossary term(s)",
+      onError: (err) => {
+        process.stderr.write(
+          `[open-agent-glossary] git batch commit failed: ${
+            err instanceof Error ? err.message : String(err)
+          }\n`
+        );
+      },
+    });
+  }
   app.use(
     "/api/*",
     cors({
@@ -182,7 +204,8 @@ export function createControlApp(opts: ControlServerOptions = {}): Hono {
         source: body.source,
         tags: body.tags,
       };
-      addTerm(scope, entry, cwd);
+      const gitOptions = buildStoreCommitOptions(loadConfig(cwd), cwd, batcher);
+      await addTerm(scope, entry, cwd, gitOptions);
       return c.json({ ok: true }, 201);
     } catch (e) {
       return err(c, e instanceof Error ? e.message : String(e), 409);
@@ -211,18 +234,20 @@ export function createControlApp(opts: ControlServerOptions = {}): Hono {
       if (body[k] !== undefined) (updates as any)[k] = body[k];
     }
     try {
-      editTerm(scope, term, updates, cwd);
+      const gitOptions = buildStoreCommitOptions(loadConfig(cwd), cwd, batcher);
+      await editTerm(scope, term, updates, cwd, gitOptions);
       return c.json({ ok: true });
     } catch (e) {
       return err(c, e instanceof Error ? e.message : String(e), 404);
     }
   });
 
-  app.delete("/api/entries/:term", (c) => {
+  app.delete("/api/entries/:term", async (c) => {
     const term = c.req.param("term");
     const scope = (c.req.query("scope") ?? "project") as "global" | "project";
     try {
-      removeTerm(scope, term, cwd);
+      const gitOptions = buildStoreCommitOptions(loadConfig(cwd), cwd, batcher);
+      await removeTerm(scope, term, cwd, gitOptions);
       return c.json({ ok: true });
     } catch (e) {
       return err(c, e instanceof Error ? e.message : String(e), 404);
@@ -364,14 +389,30 @@ export async function startControlServer(
   const server = serve({ fetch: app.fetch, port, hostname: "127.0.0.1" });
   const url = `http://127.0.0.1:${port}`;
 
+  // Grab the batcher from the app context so we can flush on close.
+  // We create a second config read here — lightweight since it's at startup.
+  const cfg = loadConfig(cwd);
+  let batcher: GitBatcher | undefined;
+  if (cfg.git.autoCommit === "batch") {
+    batcher = new GitBatcher({
+      cwd,
+      idleSeconds: cfg.git.batchIdleSeconds ?? 300,
+      batchCommitMessage: cfg.git.batchCommitMessage ?? "chore(glossary): update {count} glossary term(s)",
+    });
+  }
+
   if (opts.open) {
     void openBrowser(url);
   }
 
   return {
     url,
+    flushGit: async () => {
+      if (batcher) await batcher.flush();
+    },
     close: () =>
       new Promise<void>((resolve, reject) => {
+        if (batcher) batcher.dispose();
         server.close((e?: Error) => (e ? reject(e) : resolve()));
       }),
   };
