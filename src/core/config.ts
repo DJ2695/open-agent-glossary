@@ -53,6 +53,8 @@ export function loadConfig(cwd?: string): Required<GlossaryConfig> {
           extraGlossaryPaths: parsed.extraGlossaryPaths ?? DEFAULT_CONFIG.extraGlossaryPaths,
           // deep-merge nested ui object so partial config keeps defaults
           ui: { ...DEFAULT_CONFIG.ui, ...(parsed.ui ?? {}) },
+          // deep-merge nested git object so partial config keeps defaults
+          git: { ...DEFAULT_CONFIG.git, ...(parsed.git ?? {}) },
         };
       } catch {
         // Invalid JSON — fall through to next path
@@ -127,6 +129,7 @@ export function resolveConfigWithProvenance(cwd?: string): ConfigProvenance {
     ...parsed,
     extraGlossaryPaths: parsed.extraGlossaryPaths ?? DEFAULT_CONFIG.extraGlossaryPaths,
     ui: { ...DEFAULT_CONFIG.ui, ...(parsed.ui ?? {}) },
+    git: { ...DEFAULT_CONFIG.git, ...(parsed.git ?? {}) },
   };
 
   const origins: Record<string, string> = {};

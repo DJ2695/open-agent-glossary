@@ -57,6 +57,31 @@ export interface GlossaryConfig {
 
   /** Local UI / control server settings. */
   ui?: UiConfig;
+
+  /** Git auto-commit settings. */
+  git?: GitConfig;
+}
+
+export type GitCommitMode = "manual" | "operation" | "batch";
+
+export interface GitConfig {
+  /** Auto-commit mode. Default: "manual" (disabled). */
+  autoCommit?: GitCommitMode;
+  /**
+   * Commit message template for operation mode.
+   * Supports: {operation} (add|edit|remove), {term}, {file}
+   */
+  commitMessage?: string;
+  /**
+   * Commit message template for batch mode.
+   * Supports: {count}, {terms} (comma-separated list), {file}
+   */
+  batchCommitMessage?: string;
+  /**
+   * Seconds of inactivity before a batch commit fires.
+   * Only used when autoCommit is "batch". Default: 300 (5 minutes).
+   */
+  batchIdleSeconds?: number;
 }
 
 export interface UiConfig {
@@ -69,7 +94,6 @@ export interface UiConfig {
 }
 
 export interface SessionState {
-  /** UUID, stable for the session lifetime. */
   sessionId: string;
   loadedTerms: string[];
   lastUpdated: number;
@@ -109,5 +133,11 @@ export const DEFAULT_CONFIG: Required<GlossaryConfig> = {
     autostart: false,
     port: 7337,
     open: true,
+  },
+  git: {
+    autoCommit: "manual",
+    commitMessage: "chore(glossary): {operation} term '{term}'",
+    batchCommitMessage: "chore(glossary): update {count} glossary term(s)",
+    batchIdleSeconds: 300,
   },
 };

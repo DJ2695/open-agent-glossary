@@ -6,8 +6,18 @@ import {
 } from "node:fs";
 import { dirname } from "node:path";
 import { createHash } from "node:crypto";
-import type { GlossaryEntry } from "./types.js";
+import type { GlossaryEntry, GitCommitMode } from "./types.js";
 import { findGlossaryFile, resolveGlossaryPaths } from "./loader.js";
+import { commitFile, resolveCommitMessage, relativeFilePath } from "./git.js";
+import type { GitBatcher } from "./git-batcher.js";
+
+export interface StoreCommitOptions {
+  mode: GitCommitMode;
+  commitMessage: string;
+  batchCommitMessage: string;
+  cwd: string;
+  batcher?: GitBatcher;
+}
 
 export interface StoreHandle {
   path: string;
@@ -78,11 +88,12 @@ export function resolveStoreTarget(
 /**
  * Add a term to the glossary.
  */
-export function addTerm(
+export async function addTerm(
   scope: "global" | "project",
   entry: GlossaryEntry,
-  cwd?: string
-): void {
+  cwd?: string,
+  gitOptions?: StoreCommitOptions
+): Promise<void> {
   const filePath = resolveStoreTarget(scope, cwd);
   const store = readStore(filePath);
 
@@ -96,17 +107,19 @@ export function addTerm(
 
   const updated = [...store.entries, entry];
   writeStore(store, updated);
+  await maybeCommit(filePath, "add", entry.term, cwd ?? process.cwd(), gitOptions);
 }
 
 /**
  * Edit an existing term's fields.
  */
-export function editTerm(
+export async function editTerm(
   scope: "global" | "project",
   term: string,
   updates: Partial<Omit<GlossaryEntry, "term">>,
-  cwd?: string
-): void {
+  cwd?: string,
+  gitOptions?: StoreCommitOptions
+): Promise<void> {
   const filePath = resolveStoreTarget(scope, cwd);
   const store = readStore(filePath);
 
@@ -119,16 +132,18 @@ export function editTerm(
 
   store.entries[index] = { ...store.entries[index], ...updates };
   writeStore(store, store.entries);
+  await maybeCommit(filePath, "edit", term, cwd ?? process.cwd(), gitOptions);
 }
 
 /**
  * Remove a term from the glossary.
  */
-export function removeTerm(
+export async function removeTerm(
   scope: "global" | "project",
   term: string,
-  cwd?: string
-): void {
+  cwd?: string,
+  gitOptions?: StoreCommitOptions
+): Promise<void> {
   const filePath = resolveStoreTarget(scope, cwd);
   const store = readStore(filePath);
 
@@ -141,4 +156,34 @@ export function removeTerm(
 
   store.entries.splice(index, 1);
   writeStore(store, store.entries);
+  await maybeCommit(filePath, "remove", term, cwd ?? process.cwd(), gitOptions);
+}
+
+// ---------------------------------------------------------------------------
+// Internal git helpers
+// ---------------------------------------------------------------------------
+
+async function maybeCommit(
+  filePath: string,
+  operation: "add" | "edit" | "remove",
+  term: string,
+  cwd: string,
+  gitOptions?: StoreCommitOptions
+): Promise<void> {
+  if (!gitOptions || gitOptions.mode === "manual") return;
+
+  const relFile = relativeFilePath(filePath, cwd);
+
+  if (gitOptions.mode === "batch" && gitOptions.batcher) {
+    gitOptions.batcher.record({ operation, term, file: filePath });
+    return;
+  }
+
+  // operation mode (or batch fallback when no batcher is available)
+  const message = resolveCommitMessage(gitOptions.commitMessage, {
+    operation,
+    term,
+    file: relFile,
+  });
+  await commitFile({ filePath, message, cwd });
 }
