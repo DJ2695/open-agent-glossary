@@ -450,6 +450,23 @@ Requirements:
 - npm Trusted Publisher configured for this repo/workflow
 - `gh` CLI installed and authenticated (for automatic GitHub release creation)
 
+## Branching and release flow
+
+Current recommended flow for solo maintainers + contributors:
+
+1. Create changes in `feat/*` branches.
+2. Open PR `feat/*` -> `develop`.
+3. After reviews/validation, merge into `develop`.
+4. When ready to release, open one PR `develop` -> `main`.
+5. Run `npm run release -- <patch|minor|major>` on `develop` (or after merging).
+   This tags `vX.Y.Z`, which automatically triggers publishing via tag push.
+
+Notes:
+
+- `develop` is the collaboration/integration branch.
+- `main` is the release branch.
+- PRs to `main` are normally used only for grouped, release-ready changes.
+
 ## CLI Quick Reference
 
 ```bash
