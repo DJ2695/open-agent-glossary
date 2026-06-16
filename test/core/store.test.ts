@@ -19,8 +19,8 @@ afterEach(() => {
 });
 
 describe("store", () => {
-  it("adds a term", () => {
-    addTerm("project", { term: "New", definition: "New term" }, TEST_DIR);
+  it("adds a term", async () => {
+    await addTerm("project", { term: "New", definition: "New term" }, TEST_DIR);
     const content = JSON.parse(
       readFileSync(join(TEST_DIR, ".agents", "glossary.json"), "utf-8")
     );
@@ -28,35 +28,37 @@ describe("store", () => {
     expect(content[1].term).toBe("New");
   });
 
-  it("rejects duplicate term", () => {
-    expect(() =>
+  it("rejects duplicate term", async () => {
+    await expect(
       addTerm("project", { term: "Existing", definition: "Dup" }, TEST_DIR)
-    ).toThrow("already exists");
+    ).rejects.toThrow("already exists");
   });
 
-  it("edits a term", () => {
-    editTerm("project", "Existing", { definition: "Updated" }, TEST_DIR);
+  it("edits a term", async () => {
+    await editTerm("project", "Existing", { definition: "Updated" }, TEST_DIR);
     const content = JSON.parse(
       readFileSync(join(TEST_DIR, ".agents", "glossary.json"), "utf-8")
     );
     expect(content[0].definition).toBe("Updated");
   });
 
-  it("removes a term", () => {
-    removeTerm("project", "Existing", TEST_DIR);
+  it("removes a term", async () => {
+    await removeTerm("project", "Existing", TEST_DIR);
     const content = JSON.parse(
       readFileSync(join(TEST_DIR, ".agents", "glossary.json"), "utf-8")
     );
     expect(content).toHaveLength(0);
   });
 
-  it("throws on edit of non-existent term", () => {
-    expect(() =>
+  it("throws on edit of non-existent term", async () => {
+    await expect(
       editTerm("project", "Ghost", { definition: "nope" }, TEST_DIR)
-    ).toThrow("not found");
+    ).rejects.toThrow("not found");
   });
 
-  it("throws on remove of non-existent term", () => {
-    expect(() => removeTerm("project", "Ghost", TEST_DIR)).toThrow("not found");
+  it("throws on remove of non-existent term", async () => {
+    await expect(
+      removeTerm("project", "Ghost", TEST_DIR)
+    ).rejects.toThrow("not found");
   });
 });

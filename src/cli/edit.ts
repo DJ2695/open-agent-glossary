@@ -1,4 +1,6 @@
 import { editTerm } from "../core/store.js";
+import { loadConfig } from "../core/config.js";
+import { buildStoreCommitOptions } from "../core/store-git-options.js";
 
 interface EditOptions {
   definition?: string;
@@ -7,7 +9,7 @@ interface EditOptions {
   cwd?: string;
 }
 
-export function editCommand(term: string, options: EditOptions): void {
+export async function editCommand(term: string, options: EditOptions): Promise<void> {
   try {
     const scope = (options.scope ?? "project") as "global" | "project";
     const cwd = options.cwd ?? process.cwd();
@@ -23,7 +25,9 @@ export function editCommand(term: string, options: EditOptions): void {
       process.exit(1);
     }
 
-    editTerm(scope, term, updates, cwd);
+    const config = loadConfig(cwd);
+    const gitOptions = buildStoreCommitOptions(config, cwd);
+    await editTerm(scope, term, updates, cwd, gitOptions);
     console.log(`Updated '${term}' in ${scope} glossary.`);
   } catch (err) {
     process.stderr.write(

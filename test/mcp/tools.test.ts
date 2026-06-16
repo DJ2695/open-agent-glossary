@@ -56,22 +56,22 @@ describe("MCP tools (integration)", () => {
   });
 
   describe("glossary_add", () => {
-    it("adds a new term", () => {
-      addTerm("project", { term: "YAGNI", definition: "You Aren't Gonna Need It" }, TEST_DIR);
+    it("adds a new term", async () => {
+      await addTerm("project", { term: "YAGNI", definition: "You Aren't Gonna Need It" }, TEST_DIR);
       const glossary = loadGlossary(TEST_DIR);
       const entry = glossary.entries.find((e) => e.term === "YAGNI");
       expect(entry).toBeDefined();
       expect(entry!.definition).toBe("You Aren't Gonna Need It");
     });
 
-    it("rejects duplicate", () => {
-      expect(() =>
+    it("rejects duplicate", async () => {
+      await expect(
         addTerm("project", { term: "DRY", definition: "dup" }, TEST_DIR)
-      ).toThrow("already exists");
+      ).rejects.toThrow("already exists");
     });
 
-    it("supports aliases", () => {
-      addTerm(
+    it("supports aliases", async () => {
+      await addTerm(
         "project",
         { term: "API", definition: "Application Programming Interface", aliases: ["rest", "endpoint"] },
         TEST_DIR
@@ -85,32 +85,32 @@ describe("MCP tools (integration)", () => {
   });
 
   describe("glossary_edit", () => {
-    it("updates definition", () => {
-      editTerm("project", "DRY", { definition: "Updated definition" }, TEST_DIR);
+    it("updates definition", async () => {
+      await editTerm("project", "DRY", { definition: "Updated definition" }, TEST_DIR);
       const content = JSON.parse(
         readFileSync(join(TEST_DIR, ".agents", "glossary.json"), "utf-8")
       );
       expect(content[0].definition).toBe("Updated definition");
     });
 
-    it("updates aliases", () => {
-      editTerm("project", "DRY", { aliases: ["no-repeat"] }, TEST_DIR);
+    it("updates aliases", async () => {
+      await editTerm("project", "DRY", { aliases: ["no-repeat"] }, TEST_DIR);
       const content = JSON.parse(
         readFileSync(join(TEST_DIR, ".agents", "glossary.json"), "utf-8")
       );
       expect(content[0].aliases).toEqual(["no-repeat"]);
     });
 
-    it("rejects non-existent term", () => {
-      expect(() =>
+    it("rejects non-existent term", async () => {
+      await expect(
         editTerm("project", "GHOST", { definition: "x" }, TEST_DIR)
-      ).toThrow("not found");
+      ).rejects.toThrow("not found");
     });
   });
 
   describe("glossary_remove", () => {
-    it("removes existing term", () => {
-      removeTerm("project", "KISS", TEST_DIR);
+    it("removes existing term", async () => {
+      await removeTerm("project", "KISS", TEST_DIR);
       const content = JSON.parse(
         readFileSync(join(TEST_DIR, ".agents", "glossary.json"), "utf-8")
       );
@@ -118,8 +118,10 @@ describe("MCP tools (integration)", () => {
       expect(content[0].term).toBe("DRY");
     });
 
-    it("rejects non-existent term", () => {
-      expect(() => removeTerm("project", "GHOST", TEST_DIR)).toThrow("not found");
+    it("rejects non-existent term", async () => {
+      await expect(
+        removeTerm("project", "GHOST", TEST_DIR)
+      ).rejects.toThrow("not found");
     });
   });
 });

@@ -2,6 +2,8 @@
 export type {
   GlossaryEntry,
   GlossaryConfig,
+  GitConfig,
+  GitCommitMode,
   SessionState,
   LoadedGlossary,
   GlossaryFile,

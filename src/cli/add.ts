@@ -1,4 +1,6 @@
 import { addTerm } from "../core/store.js";
+import { loadConfig } from "../core/config.js";
+import { buildStoreCommitOptions } from "../core/store-git-options.js";
 import type { GlossaryEntry } from "../core/types.js";
 
 interface AddOptions {
@@ -7,11 +9,11 @@ interface AddOptions {
   cwd?: string;
 }
 
-export function addCommand(
+export async function addCommand(
   term: string,
   definition: string,
   options: AddOptions
-): void {
+): Promise<void> {
   try {
     const scope = (options.scope ?? "project") as "global" | "project";
     const cwd = options.cwd ?? process.cwd();
@@ -21,7 +23,9 @@ export function addCommand(
       entry.aliases = options.aliases.split(",").map((a) => a.trim());
     }
 
-    addTerm(scope, entry, cwd);
+    const config = loadConfig(cwd);
+    const gitOptions = buildStoreCommitOptions(config, cwd);
+    await addTerm(scope, entry, cwd, gitOptions);
     console.log(`Added '${term}' to ${scope} glossary.`);
   } catch (err) {
     process.stderr.write(
