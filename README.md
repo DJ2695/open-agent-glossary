@@ -62,6 +62,17 @@ Add to `.claude/settings.json`:
 }
 ```
 
+#### OpenCode
+
+Add to `.opencode/opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["open-agent-glossary/opencode"]
+}
+```
+
 #### MCP (GitHub Copilot, Cursor, any MCP client)
 
 Add to your MCP config:
@@ -130,6 +141,7 @@ You define project terms once in a glossary file, and the package makes those
 terms available across:
 
 - **Pi** via extension — lazy-loads definitions into the system prompt when terms are mentioned
+- **OpenCode** via plugin — lazy system-prompt injection + per-session dedupe
 - **Claude Code** via hooks — injects matching definitions on every prompt
 - **Any MCP-capable agent** via stdio MCP server — explicit lookup, add, edit, remove tools
 - **CLI scripts** directly
@@ -256,6 +268,17 @@ Add to `.claude/settings.json`:
 }
 ```
 
+#### OpenCode plugin
+
+Add to `.opencode/opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["open-agent-glossary/opencode"]
+}
+```
+
 #### MCP (GitHub Copilot, Cursor, any MCP client)
 
 Add to your MCP config:
@@ -305,6 +328,36 @@ pi install npm:open-agent-glossary
 ### When Glossary Files Change
 
 Pi keeps glossary entries in memory for the session. Run `/glossary reload` after editing, or start a new session.
+
+---
+
+## OpenCode Plugin
+
+The OpenCode adapter uses a two-step hook flow aligned with the Pi adapter:
+
+1. `chat.message` matches glossary terms from the incoming user text
+2. `experimental.chat.system.transform` injects only new terms into system context
+
+It dedupes terms per OpenCode `sessionID`, so repeated mentions in the same session are not re-injected.
+
+### Install modes
+
+#### npm plugin
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["open-agent-glossary/opencode"]
+}
+```
+
+#### local plugin file
+
+Copy `examples/opencode/plugins/open-agent-glossary.ts` into `.opencode/plugins/` and reference it in your OpenCode config.
+
+### Tool
+
+The plugin exposes `glossary_lookup` for explicit lookups and `[[cross-ref]]` follow-ups.
 
 ---
 
@@ -386,6 +439,7 @@ Why `.jsonl` for shared files?
 | Integration | Reload behavior |
 |---|---|
 | Pi | Loaded at session start; `/glossary reload` after changes |
+| OpenCode plugin | Re-read on each user turn; deduped per `sessionID` |
 | Claude hook | Re-read on every prompt |
 | MCP | Re-read on every tool call |
 | CLI | Re-read on every command |

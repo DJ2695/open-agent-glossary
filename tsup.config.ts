@@ -19,4 +19,13 @@ export default defineConfig([
     clean: false,
     target: "node20",
   },
+  {
+    entry: { opencode: "src/adapters/opencode/index.ts" },
+    format: ["esm"],
+    dts: true,
+    splitting: false,
+    sourcemap: true,
+    clean: false,
+    target: "node20",
+  },
 ]);

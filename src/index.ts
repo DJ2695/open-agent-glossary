@@ -60,3 +60,9 @@ export {
   resolveUiDist,
 } from "./server/control.js";
 export type { ControlServerOptions, ControlServerHandle } from "./server/control.js";
+
+export { default as openAgentGlossaryOpenCodePlugin } from "./adapters/opencode/index.js";
+export type {
+  OpenCodePluginInput,
+  OpenCodePluginOptions,
+} from "./adapters/opencode/index.js";

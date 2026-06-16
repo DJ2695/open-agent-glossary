@@ -12,6 +12,10 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./opencode": {
+      "import": "./dist/opencode.js",
+      "types": "./dist/opencode.d.ts"
     }
   },
   "scripts": {
