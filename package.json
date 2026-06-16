@@ -1,6 +1,6 @@
 {
   "name": "open-agent-glossary",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "Tool-agnostic glossary management for coding agents",
   "type": "module",
   "main": "./dist/index.js",
